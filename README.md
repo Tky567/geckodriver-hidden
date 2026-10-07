@@ -1,167 +1,161 @@
 <div align="center">
 
-# geckodriver_hidden v1.0.8
+# geckodriver_hidden
 
-A Firefox Selenium WebDriver that copies Firefox and patches `libxul` so the usual automation marker is harder to read. This fork drops `psutil`, so it can be installed on Termux.
+A Selenium Firefox driver that patches a copy of Firefox's `libxul` so the `navigator.webdriver` marker is harder to detect. This fork removes the `psutil` dependency, so it installs on Termux.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 </div>
 
-Fork of [undetected-geckodriver](https://github.com/bytexenon/undetected_geckodriver) by ByteXenon. The upstream project is archived. This package keeps the same patch idea and renames the import to `geckodriver_hidden`.
+Fork of [undetected-geckodriver](https://github.com/bytexenon/undetected_geckodriver) by ByteXenon. The upstream project is archived. This fork keeps the same patching approach and renames the import to `geckodriver_hidden`.
 
-PyPI badges can be added after the first release. The distribution name is `geckodriver-hidden`. The import name stays `geckodriver_hidden`.
+| | Name |
+|---|---|
+| PyPI distribution | `geckodriver-hidden` |
+| Python import | `geckodriver_hidden` |
 
 ## Overview
 
 > [!NOTE]
-> Linux only, including Termux when `platform.system()` reports `Linux` or `Android`. Windows and macOS paths from the original project were never finished.
+> Linux only. Termux is supported when `platform.system()` reports `Linux` or `Android`. The Windows and macOS code paths inherited from the original project were never finished.
 
-Selenium drives Firefox through geckodriver. While that session is active, Firefox sets properties defined by the WebDriver specification. Pages can read `navigator.webdriver` and treat the session as automated. Services such as Cloudflare use that kind of check.
+While Selenium drives Firefox through geckodriver, Firefox exposes the properties defined by the WebDriver specification. One of them is `navigator.webdriver`, which pages (and services such as Cloudflare) can read to tell that a session is automated.
 
-`geckodriver_hidden.Firefox()` sits between your code and Selenium. Creating an instance does two things:
+`geckodriver_hidden.Firefox()` wraps Selenium's Firefox driver. Creating an instance does two things:
 
-1. Locate the Firefox installation, copy it, and replace the `webdriver` marker inside the copied `libxul` with a random string of the same length.
-2. Start a Selenium session against that copied binary.
+1. Finds the Firefox installation, copies it, and replaces the `webdriver` string inside the copied `libxul` with a random string of the same length.
+2. Starts a Selenium session using the copied binary.
 
-The installed Firefox is not modified. The copy lives under `$HOME/.cache/undetected_firefox/`.
+Your installed Firefox is not modified. The copy is stored in `$HOME/.cache/undetected_firefox/`.
 
-You can compare a normal Selenium Firefox session with this package on a bot-detection page such as [BrowserScan](https://www.browserscan.net/bot-detection). Passing that page does not mean every site will allow the session.
+You can compare a normal Selenium session with this package on a bot-detection page such as [BrowserScan](https://www.browserscan.net/bot-detection). Passing that page does not guarantee that every site will accept the session.
 
-The `libxul` marker was written for desktop Linux builds. A Termux Firefox build (Bionic, usually `aarch64`) may not contain the same bytes, so the copy can still be detected or fail to start. Removing `psutil` only fixes the install error on Termux. It does not make the patch match a Termux build.
+> [!WARNING]
+> The `libxul` patch was written for desktop Linux builds. Termux builds of Firefox (Bionic libc, usually `aarch64`) may not contain the same bytes, so the browser can still be detected or fail to start. Removing `psutil` only fixes the install error on Termux. It does not make the patch match a Termux build.
+
+## Requirements
+
+- Linux (including Termux)
+- Firefox
+- Python 3.7+
+- `selenium>=4.10.0` (the only runtime dependency)
 
 ## Installation
-
-Python 3.6+ and Firefox are required. The only runtime dependency is `selenium>=4.10.0`.
-
-After this project is published on PyPI:
 
 ```bash
 pip install geckodriver-hidden
 ```
 
-The import name uses an underscore, because a Python module cannot contain a hyphen:
+```bash
+git clone https://github.com/Tky567/geckodriver_hidden.git
+cd geckodriver_hidden
+pip install .
+```
+
+Or install directly from git without cloning:
+
+```bash
+pip install "git+https://github.com/Tky567/geckodriver_hidden.git"
+```
+
+Python module names cannot contain hyphens, so the import uses an underscore:
 
 ```python
 from geckodriver_hidden import Firefox
 ```
 
-`pip` treats `geckodriver_hidden` and `geckodriver-hidden` as the same project name. Register and document the hyphenated name only.
-
-Until the package is on PyPI, install from git or from a local archive. Replace `USER` with the GitHub account that owns the repository:
-
-```bash
-pip install "git+https://github.com/USER/geckodriver_hidden.git"
-pip install .
-```
-
-A built sdist or wheel installs the same metadata from `pyproject.toml`:
-
-```bash
-pip install geckodriver_hidden-1.0.8.tar.gz
-pip install geckodriver_hidden-1.0.8-py3-none-any.whl
-```
-
-Build and upload when the PyPI name `geckodriver-hidden` is free:
-
-```bash
-python -m pip install build twine
-python -m build
-python -m twine upload dist/*
-```
-
-Publishing also runs from the `Publish Python Package` workflow on a GitHub release, using the `PYPI_API_TOKEN` secret.
-
-### Why psutil was removed
-
-Upstream 1.0.7 depends on `psutil>=5.8.0`. On Termux with Python 3.13, `pip install psutil` fails while building the wheel: upstream reports `platform android is not supported`. `psutil` was not part of the patch. It was only the last-resort search for the Firefox directory: start Firefox, read the process executable, then stop it.
-
-This package does that with the standard library:
-
-1. `shutil.which()` finds `firefox` or `firefox-bin` on `PATH`.
-2. `os.fork()` and `os.execv()` start `firefox --headless --new-instance` in a child.
-3. `os.readlink("/proc/<pid>/exe")` reads the executable path. `os.kill()` stops the child.
-
-`os.getlogin()` is not used. Termux often has no controlling terminal, so that call raises. The cache path uses `$HOME` and `$USER`. The search list also includes `/data/data/com.termux/files/usr/lib/firefox`. If `platform.system()` returns `Android`, it is treated as Linux.
-
 ## Usage
 
-This package is an interface for Selenium. Replace `selenium.webdriver.Firefox` with `geckodriver_hidden.Firefox`. The rest of the Selenium API is unchanged.
+Replace `selenium.webdriver.Firefox` with `geckodriver_hidden.Firefox`. The rest of the Selenium API is unchanged.
 
-1. **Open a page**
+**Open a page**
 
-   ```python
-   from geckodriver_hidden import Firefox
+```python
+from geckodriver_hidden import Firefox
 
-   driver = Firefox()
-   driver.get("https://www.example.com")
-   driver.quit()
-   ```
+driver = Firefox()
+driver.get("https://www.example.com")
+driver.quit()
+```
 
-2. **Search on Google**
+**Search on Google**
 
-   ```python
-   import time
-   from geckodriver_hidden import Firefox
-   from selenium.webdriver.common.by import By
+```python
+import time
+from geckodriver_hidden import Firefox
+from selenium.webdriver.common.by import By
 
-   driver = Firefox()
-   driver.get("https://www.google.com")
+driver = Firefox()
+driver.get("https://www.google.com")
 
-   search_box = driver.find_element(By.NAME, "q")
-   search_box.send_keys("geckodriver_hidden")
-   search_box.submit()
+search_box = driver.find_element(By.NAME, "q")
+search_box.send_keys("geckodriver_hidden")
+search_box.submit()
 
-   time.sleep(2)
-   print("Current URL:", driver.current_url)
-   driver.quit()
-   ```
+time.sleep(2)
+print("Current URL:", driver.current_url)
+driver.quit()
+```
 
-`example/example.py` is the short form of the first pattern. For the rest of the API, see the [Selenium documentation](https://www.selenium.dev/documentation/).
+`example/example.py` contains the first example. For the rest of the API, see the [Selenium documentation](https://www.selenium.dev/documentation/).
 
-## Requirements
+## Why `psutil` was removed
 
-- Firefox
-- Python >= 3.6
-- Selenium >= 4.10.0
+Upstream 1.0.7 depends on `psutil>=5.8.0`. On Termux with Python 3.13, `pip install psutil` fails while building the wheel with `platform android is not supported`.
 
-`psutil` is not required as of 1.0.8.
+`psutil` was not part of the patch itself. It was only used as a last resort to locate the Firefox directory (start Firefox, read the process executable, stop it). This package does the same with the standard library:
+
+1. `shutil.which()` looks for `firefox` or `firefox-bin` on `PATH`.
+2. `os.fork()` and `os.execv()` start `firefox --headless --new-instance` in a child process.
+3. `os.readlink("/proc/<pid>/exe")` reads the executable path, then `os.kill()` stops the child.
+
+Other Termux-related changes:
+
+- `os.getlogin()` is not used, because it raises an error when there is no controlling terminal (common on Termux). The cache path is built from `$HOME` and `$USER` instead.
+- The search list includes `/data/data/com.termux/files/usr/lib/firefox`.
+- `Android` is treated as `Linux`.
 
 ## FAQ
 
 ### The browser is still detected. What should I do?
 
-The patch only rewrites one marker in a copied `libxul`. Other signals are unchanged: IP address, TLS, canvas, WebGL, and behavior. A site can still block the session. The marker may also be missing on a Firefox build this package was not written for. Open an issue with the site URL, Firefox version, and operating system if a desktop Linux build is still flagged only because of `navigator.webdriver`.
+The patch only rewrites one marker in a copied `libxul`. Other signals are unchanged: IP address, TLS fingerprint, canvas, WebGL, and behavior. A site can still block the session for any of these reasons. The marker may also be missing from a Firefox build this package was not written for.
+
+If a desktop Linux build is flagged only because of `navigator.webdriver`, open an issue with the site URL, Firefox version, and operating system.
 
 ### Why patch the Firefox binary?
 
-When Firefox is controlled remotely, it sets properties described by the WebDriver specification. Selenium does not set `navigator.webdriver` itself. The package copies Firefox and edits the copied `libxul` so that marker is replaced with a random string of the same length.
+When Firefox is remotely controlled, it sets `navigator.webdriver` as required by the WebDriver specification. Selenium does not set it, so it cannot be turned off from the Selenium side. This package copies Firefox and replaces the marker in the copied `libxul` with a random string of the same length.
 
 ### Why this name?
 
-The import is `geckodriver_hidden` because the package hides the usual WebDriver marker in the copied Firefox libraries. It is not a separate geckodriver binary. The PyPI project name is `geckodriver-hidden`: hyphens are the distribution-name form, underscores are only for the import.
+The package hides the WebDriver marker in the copied Firefox libraries. It is not a separate geckodriver binary. Hyphens are the PyPI distribution-name form (`geckodriver-hidden`), and underscores are used only for the import (`geckodriver_hidden`).
 
-### Why use this instead of undetected-chromedriver?
+### How is this different from undetected-chromedriver?
 
-[undetected-chromedriver](https://github.com/ultrafunkamsterdam/undetected-chromedriver) targets Chrome and Edge. This package is the Firefox path, continued after upstream archived [undetected-geckodriver](https://github.com/bytexenon/undetected_geckodriver), with the `psutil` dependency removed.
+[undetected-chromedriver](https://github.com/ultrafunkamsterdam/undetected-chromedriver) targets Chrome. This package targets Firefox. It continues [undetected-geckodriver](https://github.com/bytexenon/undetected_geckodriver) after upstream was archived, with the `psutil` dependency removed.
 
 ## Roadmap
 
-**Done in this fork:**
+**Done in this fork**
 
 - [x] Spoof the `webdriver` marker in a copied `libxul.so`.
-- [x] Drop `psutil` and find Firefox with `PATH` plus `/proc/<pid>/exe`.
+- [x] Drop `psutil`; find Firefox using `PATH` and `/proc/<pid>/exe`.
 - [x] Treat Android as Linux and search the Termux Firefox library path.
 
-**Not done:**
+**Not done**
 
-- [ ] Windows and macOS. The path tables exist only as comments in `constants.py`.
+- [ ] Windows and macOS support. The path tables exist only as comments in `constants.py`.
 - [ ] Helpers for CAPTCHA or Cloudflare challenges.
 - [ ] Selenium Wire support.
 
 ## Contributing
 
-Issues and pull requests are welcome, especially a confirmed `libxul` marker for a Firefox build this package misses, or a Windows or macOS path table that has been tested.
+Issues and pull requests are welcome. Most useful are:
+
+- a confirmed `libxul` marker for a Firefox build this package misses;
+- a tested Windows or macOS path table.
 
 ## License
 
