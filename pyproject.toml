@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "geckodriver-hidden"
+version = "1.0.8"
+description = "Firefox Selenium WebDriver that copies Firefox and patches libxul without a psutil dependency."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.6"
+authors = [
+    {name = "ByteXenon"},
+]
+keywords = [
+    "selenium",
+    "firefox",
+    "geckodriver",
+    "webdriver",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Operating System :: POSIX :: Linux",
+    "Topic :: Software Development :: Testing",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = [
+    "selenium>=4.10.0",
+]
+
+[project.urls]
+Upstream = "https://github.com/bytexenon/undetected_geckodriver"
+
+[tool.setuptools]
+packages = ["geckodriver_hidden"]
